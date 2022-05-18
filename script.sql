@@ -339,28 +339,31 @@ create table Schedule_Subjects_Dates
 )
 go
 
-create trigger after_delete_parents
-    on Parents
-    after delete
+create trigger instead_of_delete_acc
+    on Accounts
+    instead of delete
     as
-begin
-    delete from Parents_Children where PC_PR_ID = (select AL_PR_ID from deleted);
-end
-go
-
-
-create trigger after_delete_child
-    on Children
-    after delete
-    as
-begin
-    delete from Courses_Children where CC_CH_ID = (select AL_CH_ID from deleted);
-    delete from CDC_Children where CC_CH_ID = (select AL_CH_ID from deleted);
-    delete from Parents_Children where PC_CH_ID = (select AL_CH_ID from deleted);
-    delete from Grades where G_CH_ID = (select AL_CH_ID from deleted);
-    delete from Classes_Children where CCH_CH_ID = (select AL_CH_ID from deleted);
-end
-go
+    begin
+        declare @role int= (select AC_Role from deleted);
+        if (@role = 1)
+            begin
+                delete from Courses_Children where CC_CH_ID = (select AC_ID from deleted);
+                delete from CDC_Children where CC_CH_ID = (select AC_ID from deleted);
+                delete from Parents_Children where PC_CH_ID = (select AC_ID from deleted);
+                delete from Grades where G_CH_ID = (select AC_ID from deleted);
+                delete from Classes_Children where CCH_CH_ID = (select AC_ID from deleted);
+                delete from Children where AL_CH_ID = (select AC_ID from deleted);
+            end
+        else if (@role = 2)
+            begin
+                delete from Parents_Children where PC_PR_ID = (select AC_ID from deleted);
+                delete from Parents where AL_PR_ID = (select AC_ID from deleted);
+            end
+        else
+            begin
+                delete from Teachers where T_AC_ID = (select AC_ID from deleted);
+            end
+    end
 
 CREATE procedure get_schedule(@ch_date date, @class nvarchar(max)) as
 begin
