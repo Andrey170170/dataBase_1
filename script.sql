@@ -310,7 +310,7 @@ create table Schedule_Subjects
         references TimeIntervals,
     SS_CLR_ID int  not null
         references Classrooms,
-    SS_T_ID   int  not null
+    SS_T_ID   int  null
         references Teachers,
     SS_CT_ID  int  not null
         references ClassTypes,
@@ -331,7 +331,7 @@ create table Schedule_Subjects_Dates
         references TimeIntervals,
     SSD_CLR_ID int  not null
         references Classrooms,
-    SSD_T_ID   int  not null
+    SSD_T_ID   int  null
         references Teachers,
     SSD_CT_ID  int  not null
         references ClassTypes,
@@ -345,23 +345,27 @@ create trigger instead_of_delete_acc
     as
     begin
         declare @role int= (select AC_Role from deleted);
+        declare @id int= (select AC_ID from deleted);
         if (@role = 1)
             begin
-                delete from Courses_Children where CC_CH_ID = (select AC_ID from deleted);
-                delete from CDC_Children where CC_CH_ID = (select AC_ID from deleted);
-                delete from Parents_Children where PC_CH_ID = (select AC_ID from deleted);
-                delete from Grades where G_CH_ID = (select AC_ID from deleted);
-                delete from Classes_Children where CCH_CH_ID = (select AC_ID from deleted);
-                delete from Children where AL_CH_ID = (select AC_ID from deleted);
+                delete from Courses_Children where CC_CH_ID = @id;
+                delete from CDC_Children where CC_CH_ID = @id;
+                delete from Parents_Children where PC_CH_ID = @id;
+                delete from Grades where G_CH_ID = @id;
+                delete from Classes_Children where CCH_CH_ID = @id;
+                delete from Children where AL_CH_ID = @id;
             end
         else if (@role = 2)
             begin
-                delete from Parents_Children where PC_PR_ID = (select AC_ID from deleted);
-                delete from Parents where AL_PR_ID = (select AC_ID from deleted);
+                delete from Parents_Children where PC_PR_ID = @id;
+                delete from Parents where AL_PR_ID = @id;
             end
         else
             begin
-                delete from Teachers where T_AC_ID = (select AC_ID from deleted);
+                delete from Teachers_Subjects where Teachers_Subjects.TS_T_ID = @id;
+                delete from Teachers where T_AC_ID = @id;
+                update Schedule_Subjects set SS_T_ID = null where SS_T_ID = @id;
+                update Schedule_Subjects_Dates set SSD_T_ID = null where SSD_T_ID = @id;
             end
     end
 
@@ -986,3 +990,42 @@ values  (1, 1, 5, 1, 7, 1, N'2022-09-12'),
         (2, 3, 1, 3, 9, 3, N'2022-09-24'),
         (3, 4, 4, 4, 7, 1, N'2022-09-28'),
         (3, 5, 5, 5, 8, 2, N'2022-09-29');
+
+
+select S_Name as Subject, G_Data as [date], GT_Name as [Grade type], G_Grade as Grade
+from Children
+         join Grades G on Children.AL_CH_ID = G.G_CH_ID
+         join GradesTypes GT on G.G_GT_ID = GT.GT_ID
+         join Subjects S on G.G_S_ID = S.S_ID
+where AL_CH_ID = 2
+order by G_Data, GT_Name;
+
+select CH_FullName as [Name], CR_Name as [Couerse], ST_Name as Status
+from Children
+         join Courses_Children CC on Children.AL_CH_ID = CC.CC_CH_ID
+         join Courses C on CC.CC_CR_ID = C.CR_ID
+         join Statuses S on CC.CC_ST_ID = S.ST_ID
+where AL_CH_ID = 1
+
+select PR_FullName, CH_FullName, S_Name, G_Grade, GT_Name, G_Data
+from Parents
+         join Parents_Children PC on Parents.AL_PR_ID = PC.PC_PR_ID
+         join Children C on PC.PC_CH_ID = C.AL_CH_ID
+         join Grades G on C.AL_CH_ID = G.G_CH_ID
+         join GradesTypes GT on G.G_GT_ID = GT.GT_ID
+         join Subjects S on G.G_S_ID = S.S_ID
+where AL_PR_ID = 5
+order by CH_FullName, G_Data;
+
+select count(*)
+from ScheduleOnDays
+         join Schedule_Subjects SS on ScheduleOnDays.SOD_ID = SS.SS_SOD_ID
+         join Schedule_Subjects_Dates SSD on ScheduleOnDays.SOD_ID = SSD.SSD_SOD_ID
+where SOD_ID = 1
+  and SSD_Date = '2022-09-12';
+
+select T_AC_ID, T_FullName, S_Name
+from Teachers
+         join Teachers_Subjects TS on Teachers.T_AC_ID = TS.TS_T_ID
+         join Subjects S on S.S_ID = TS.TS_S_ID
+group by T_AC_ID, T_FullName, S_Name order by T_AC_ID;
