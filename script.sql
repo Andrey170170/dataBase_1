@@ -348,9 +348,9 @@ create trigger instead_of_delete_acc
         declare @id int= (select AC_ID from deleted);
         if (@role = 1)
             begin
+                delete from Parents_Children where PC_CH_ID = @id;
                 delete from Courses_Children where CC_CH_ID = @id;
                 delete from CDC_Children where CC_CH_ID = @id;
-                delete from Parents_Children where PC_CH_ID = @id;
                 delete from Grades where G_CH_ID = @id;
                 delete from Classes_Children where CCH_CH_ID = @id;
                 delete from Children where AL_CH_ID = @id;
@@ -368,6 +368,12 @@ create trigger instead_of_delete_acc
                 update Schedule_Subjects_Dates set SSD_T_ID = null where SSD_T_ID = @id;
             end
     end
+
+create trigger Accounts_insert
+    on Accounts
+    instead of delete
+    as
+    print N'У меня кончилась фантазия'
 
 CREATE procedure get_schedule(@ch_date date, @class nvarchar(max)) as
 begin
